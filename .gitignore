@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+
+# Environnements
+.env
+.secrets
+config.json
+
+# Fichiers générés par l'IDE
+.idea/
+.vscode/
+
+# Fichiers temporaires
+*.swp
+*.swo

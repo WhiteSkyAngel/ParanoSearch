@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ParanoSearch 🔒</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #1a1a1a;
+            --card-bg: #f8f9fa;
+            --primary: #007bff;
+        }
+        .dark-mode {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --card-bg: #2d2d2d;
+            --primary: #4a90e2;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--primary);
+            border-radius: 5px;
+            font-size: 16px;
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+        button {
+            padding: 12px 25px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        #suggestions-container {
+            position: absolute;
+            top: 55px;
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        .suggestion {
+            padding: 12px;
+            color: var(--text-color);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.2s;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .suggestion:hover, .suggestion.highlighted {
+            background: var(--primary);
+            color: white !important;
+        }
+        .preview {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-left: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+        }
+        #preview-container {
+            position: fixed;
+            right: 20px;
+            width: 300px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        .result {
+            margin: 15px 0;
+            padding: 15px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #passwordModal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            z-index: 10000;
+            display: none;
+        }
+
+        .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result.error {
+            border-left: 4px solid #dc3545;
+            background: #ffebee;
+            color: #b71c1c;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result.auto-delete {
+            animation: fadeOut 2s ease 28s forwards;
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; height: 0; padding: 0; margin: 0; }
+        }
+
+        /* Footer */
+        .glass-footer {
+            margin-top: 4rem;
+            padding: 1.5rem 2rem;
+            background: rgba(var(--primary-rgb), 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(var(--primary-rgb), 0.1);
+            margin: 2rem auto;
+            max-width: 800px;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .branding {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            color: var(--text-color);
+        }
+
+        .logo-icon {
+            width: 24px;
+            height: 24px;
+            stroke: var(--primary);
+        }
+
+        .license-badge {
+            background: rgba(var(--primary-rgb), 0.1);
+            color: var(--primary);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+
+        .github-link {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-color);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .github-icon {
+            fill: currentColor;
+        }
+
+        .github-link:hover {
+            color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        /* Dark mode */
+        .dark-mode .glass-footer {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .dark-mode .license-badge {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Mode sombre */
+        .dark-mode footer {
+            color: #888;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="passwordModal">
+        <h3>🔐 Sécurité renforcée</h3>
+        <input type="password" id="passwordInput" placeholder="Créez un mot de passe principal">
+        <button onclick="initializeApp()">Valider</button>
+        <p style="font-size: 0.8em; color: var(--text-color); opacity: 0.7;">
+            Ce mot de passe protège toutes vos données. Vous ne pourrez pas le récupérer si vous l'oubliez !
+        </p>
+    </div>
+
+    <h1>🔒 ParanoSearch</h1>
+    
+    <div class="search-box">
+        <input type="text" id="query" placeholder="Que cherchez-vous ?">
+        <div id="suggestions-container"></div>
+        <button onclick="doSearch(false)" >🔍 Recherche</button>
+        <button onclick="doSearch(true)" style="background: #dc3545;" >🕵️ Mode Parano</button>
+        <button onclick="toggleDarkMode()" id="darkModeBtn">🌙 Dark Mode</button>
+    </div>
+
+    <div id="preview-container"></div>
+    <div id="results"></div>
+    <div id="loading" style="display: none;">
+        <div class="loader"></div>
+    </div>
+
+    <!-- Dans <body>, avant les scripts -->
+    <footer class="glass-footer">
+        <div class="footer-content">
+            <div class="branding">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L3 9v12h18V9l-9-7zM12 18v-4"/>
+                </svg>
+                <span>ParanoSearch v1.0</span>
+            </div>
+            <div class="legal">
+                <div class="license-badge">MIT License</div>
+                <a href="https://github.com/votre-user/ParanoSearch" target="_blank" class="github-link">
+                    <svg class="github-icon" viewBox="0 0 16 16" width="16" height="16">
+                        <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                    </svg>
+                    Code source
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ===================== Configuration =====================
+        const DB_NAME = 'ParanoVault';
+        const STORE_NAME = 'secureStore';
+        let db;
+        let cryptoKey;
+        let selectedSuggestion = -1;
+        let currentSuggestions = [];
+        let abortController = new AbortController();
+
+        // ===================== Gestion IndexedDB =====================
+        async function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 2);
+                
+                request.onupgradeneeded = (e) => {
+                    db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+
+                request.onerror = reject;
+            });
+        }
+
+        // ===================== Cryptographie Renforcée =====================
+        async function deriveKey(password, salt) {
+            const keyMaterial = await window.crypto.subtle.importKey(
+                "raw",
+                new TextEncoder().encode(password),
+                "PBKDF2",
+                false,
+                ["deriveKey"]
+            );
+
+            return window.crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt,
+                    iterations: 210000,
+                    hash: "SHA-256"
+                },
+                keyMaterial,
+                { name: "AES-GCM", length: 256 },
+                false, // Clé non exportable
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        async function getOrCreateKey() {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.get('masterKey');
+
+            return new Promise((resolve, reject) => {
+                request.onsuccess = async (e) => {
+                    if (e.target.result) {
+                        const { salt, encryptedKey } = e.target.result;
+                        const password = prompt("Entrez votre mot de passe principal");
+                        cryptoKey = await deriveKey(password, salt);
+                        resolve();
+                    } else {
+                        document.getElementById('passwordModal').style.display = 'block';
+                    }
+                };
+                request.onerror = reject;
+            });
+        }
+
+        async function initializeApp() {
+            const password = document.getElementById('passwordInput').value;
+            const salt = window.crypto.getRandomValues(new Uint8Array(16));
+            
+            cryptoKey = await deriveKey(password, salt);
+            
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            
+            store.put({ 
+                id: 'masterKey',
+                salt,
+                created: new Date().toISOString()
+            });
+
+            document.getElementById('passwordModal').style.display = 'none';
+            enableUI();
+        }
+
+        function enableUI() {
+            document.getElementById('query').disabled = false;
+            document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+        }
+
+        // ===================== Fonctions Principales =====================
+        async function encrypt(data) {
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const encoded = new TextEncoder().encode(data);
+            const encrypted = await window.crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv },
+                cryptoKey,
+                encoded
+            );
+            return { iv: Array.from(iv), data: Array.from(new Uint8Array(encrypted)) };
+        }
+
+        async function decrypt(encrypted) {
+            const iv = new Uint8Array(encrypted.iv);
+            const data = new Uint8Array(encrypted.data);
+            const decrypted = await window.crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv },
+                cryptoKey,
+                data
+            );
+            return new TextDecoder().decode(decrypted);
+        }
+
+        async function doSearch(paranoMode) {
+            document.getElementById('suggestions-container').style.display = 'none';
+            const query = document.getElementById('query').value.trim();
+            if (!query) return;
+
+            const resultsDiv = document.getElementById('results');
+            const loading = document.getElementById('loading');
+
+            let timeoutId; // Variable pour stocker le timeout
+            
+            try {
+                loading.style.display = 'block';
+                resultsDiv.innerHTML = '';
+
+                // Mode Parano : 3 fausses requêtes via votre propre API
+                if (paranoMode) {
+                    const fakeQueries = [
+                        `fake_${Date.now()}_1`,
+                        `fake_${Date.now()}_2`, 
+                        `fake_${Date.now()}_3`
+                    ];
+
+                    // Envoyer les fausses requêtes sans attendre la réponse
+                    fakeQueries.forEach(fake => {
+                        fetch(`/parano?q=${encodeURIComponent(fake)}`)
+                            .catch(() => {}); // Ignorer les erreurs
+                    });
+                }
+
+                // Vraie recherche
+                const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                // Affichage des résultats
+                displayResults(data);
+
+                // Sauvegarde sécurisée
+                const encryptedData = await encrypt(JSON.stringify(data));
+                await saveToHistory(query, encryptedData);
+
+                if (data.length > 0) {
+                    displayResults(data);
+
+            // Réinitialiser le timeout précédent
+            if (timeoutId) clearTimeout(timeoutId);
+            
+                // Nouveau timeout pour 30s
+                timeoutId = setTimeout(() => {
+                    const resultsDiv = document.getElementById('results');
+                    if (resultsDiv) {
+                        resultsDiv.innerHTML = `
+                            <div class="result">
+                                🔒 Les résultats ont été automatiquement supprimés
+                            </div>
+                        `;
+                    }
+                }, 30000); // 30 secondes
+            }
+
+
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result error">Erreur : ${error.message}</div>`;
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        async function saveToHistory(query, encryptedData) {
+            // 1. Encrypter la requête AVANT la transaction
+            const encryptedQuery = await encrypt(query);
+
+            return new Promise((resolve, reject) => {
+                // 2. Démarrer une transaction unique
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+
+                // 3. Opérations SYNCHRONES uniquement
+                const getRequest = store.get('history');
+                
+                getRequest.onsuccess = (e) => {
+                    const existing = e.target.result;
+                    const history = existing ? existing.data : [];
+                    
+                    // Ajouter la nouvelle entrée (synchrone)
+                    history.push({
+                        query: encryptedQuery, // Déjà encrypté
+                        results: encryptedData,
+                        date: new Date().toISOString()
+                    });
+
+                    // Mettre à jour
+                    store.put({ id: 'history', data: history });
+                };
+
+                // 4. Gestion de la transaction
+                tx.oncomplete = resolve;
+                tx.onerror = (e) => reject(e.target.error);
+                getRequest.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        // ===================== Interface Utilisateur =====================
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const btn = document.getElementById('darkModeBtn');
+            btn.textContent = document.body.classList.contains('dark-mode') ? "☀️ Light Mode" : "🌙 Dark Mode";
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = data.map(result => `
+                <div class="result auto-delete">
+                    <h3>${result.title}</h3>
+                    <a href="${result.link}" target="_blank">${result.link}</a>
+                </div>
+            `).join('');
+        }
+
+        // ===================== Prévisualisation =====================
+        async function showPreview(phrase) {
+            try {
+                const preview = document.getElementById('preview-container');
+                preview.innerHTML = 'Chargement...';
+                preview.style.display = 'block';
+
+                const response = await fetch(`/search?q=${encodeURIComponent(phrase)}`);
+                const data = await response.json();
+                
+                if (data.length > 0) {
+                    preview.innerHTML = data[0].title;
+                } else {
+                    preview.innerHTML = 'Aucune prévisualisation disponible';
+                }
+            } catch (error) {
+                preview.innerHTML = 'Erreur de prévisualisation';
+                console.error('Preview error:', error);
+            }
+        }
+
+        function hidePreview() {
+            const preview = document.getElementById('preview-container');
+            preview.style.display = 'none';
+        }
+
+        // ===================== Sélection des suggestions =====================
+        function selectSuggestion(index) {
+            const suggestion = currentSuggestions[index].phrase;
+            document.getElementById('query').value = suggestion;
+            document.getElementById('suggestions-container').style.display = 'none';
+            doSearch(false); // Lance la recherche automatiquement
+        }
+
+        // ===================== Suggestions =====================
+        document.getElementById('query').addEventListener('input', async function(e) {
+            const query = e.target.value;
+            const container = document.getElementById('suggestions-container');
+            
+            if (query.length < 2) {
+                container.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/suggest?q=${encodeURIComponent(query)}`);
+                currentSuggestions = await response.json();
+                
+                container.innerHTML = currentSuggestions.map(s => `
+                    <div class="suggestion" onclick="selectSuggestion('${s.phrase}')">
+                        ${s.phrase}
+                    </div>
+                `).join('');
+                
+                container.style.display = 'block';
+            } catch (error) {
+                console.error('Erreur suggestions:', error);
+            }
+        });
+
+        function selectSuggestion(phrase) {
+            document.getElementById('query').value = phrase;
+            document.getElementById('suggestions-container').style.display = 'none';
+            doSearch(false); // Lance la recherche
+        }
+
+        document.addEventListener('click', (e) => {
+            const suggestions = document.getElementById('suggestions-container');
+            const isClickInside = e.target.closest('#suggestions-container') || e.target.closest('#query');
+            
+            if (!isClickInside) {
+                suggestions.style.display = 'none';
+            }
+        });
+
+        // ===================== Initialisation =====================
+        (async () => {
+            await initDB();
+            await getOrCreateKey();
+            if (localStorage.getItem('darkMode') === 'true') toggleDarkMode();
+        })();
+    </script>
+</body>
+</html>
